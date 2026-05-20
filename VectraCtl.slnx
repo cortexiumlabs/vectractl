@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/VectraCtl.Core/VectraCtl.Core.csproj" Id="1c8495df-e1e7-40a5-890f-ec3a932f8d27" />
+    <Project Path="src/VectraCtl.Infrastructure/VectraCtl.Infrastructure.csproj" Id="4c0e3281-73d2-4cf6-bc93-3917fd9cac85" />
+    <Project Path="src/VectraCtl/VectraCtl.csproj" />
+  </Folder>
+  <Folder Name="/tests/" />
+</Solution>

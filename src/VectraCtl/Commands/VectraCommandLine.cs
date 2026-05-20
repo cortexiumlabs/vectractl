@@ -1,0 +1,23 @@
+﻿using System.CommandLine;
+
+namespace VectraCtl.Commands;
+
+internal static class VectraCommandLine
+{
+    public static RootCommand Create(IServiceProvider serviceProvider, string[] args)
+    {
+        var rootCommand = new RootCommand("VectraCtl – CLI tool for Vectra (Intent-Aware Governance Gateway for Autonomous AI Agents)");
+
+        rootCommand.Subcommands.Add(TokenCommand.Create(serviceProvider));
+        rootCommand.Subcommands.Add(AgentsCommand.Create(serviceProvider));
+        rootCommand.Subcommands.Add(HitlCommand.Create(serviceProvider));
+        rootCommand.Subcommands.Add(PoliciesCommand.Create(serviceProvider));
+
+        rootCommand.SetAction(async (parseResult, cancellationToken) =>
+        {
+
+        });
+
+        return rootCommand;
+    }
+}
