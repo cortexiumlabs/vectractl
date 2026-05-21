@@ -91,7 +91,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: vectractl-${{ matrix.title }}-${{ matrix.os_arch }}
-          path: "${{ github.workspace }}/dist"
+          path: |
+            ${{ github.workspace }}/dist/*.zip
+            ${{ github.workspace }}/dist/*.tar.gz
 
   release:
     runs-on: ubuntu-latest
@@ -125,12 +127,11 @@ jobs:
           set -euo pipefail
           cd "${{ env.ARTIFACT_DIR }}"
 
-          shopt -s nullglob
-          files=( *.zip *.tar.gz )
+          mapfile -t files < <(find . -type f \( -name '*.zip' -o -name '*.tar.gz' \) | sort)
 
           if [ ${#files[@]} -eq 0 ]; then
             echo "No release archives were downloaded into ${PWD}"
-            ls -la
+            find . -maxdepth 3 -type f | sort || true
             exit 1
           fi
 
