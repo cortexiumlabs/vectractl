@@ -27,9 +27,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Validate version format
+        env:
+          REL_VERSION: ${{ inputs.rel_version }}
         run: |
-          if ! echo "${{ inputs.rel_version }}" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$'; then
-            echo "Invalid version format: ${{ inputs.rel_version }}"
+          if ! echo "${REL_VERSION}" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$'; then
+            echo "Invalid version format: ${REL_VERSION}"
             exit 1
           fi
 
@@ -76,6 +78,8 @@ jobs:
 
       - name: Publish
         shell: bash
+        env:
+          REL_VERSION: ${{ inputs.rel_version }}
         run: |
           release_name="vectractl-${{ matrix.title }}-${{ matrix.os_arch }}"
           dotnet publish src/VectraCtl/VectraCtl.csproj \
@@ -84,7 +88,7 @@ jobs:
             --runtime "${{ matrix.kind }}-${{ matrix.os_arch }}" \
             -c Release \
             --self-contained true \
-            /property:Version="${{ inputs.rel_version }}" \
+            /property:Version="${REL_VERSION}" \
             -o "${{ github.workspace }}/${release_name}"
 
           mkdir -p "${{ github.workspace }}/dist"
@@ -151,11 +155,14 @@ jobs:
       - name: Build release notes
         id: notes
         shell: bash
+        env:
+          REL_VERSION: ${{ inputs.rel_version }}
+          RELEASE_SUMMARY: ${{ inputs.release_summary }}
         run: |
           set -eu
 
-          VERSION="v${{ inputs.rel_version }}"
-          SUMMARY="${{ inputs.release_summary }}"
+          VERSION="v${REL_VERSION}"
+          SUMMARY="${RELEASE_SUMMARY}"
 
           # ── Locate previous tag ──────────────────────────────────────────────
           # Temporarily disable pipefail: grep exits 1 when there are no matches
