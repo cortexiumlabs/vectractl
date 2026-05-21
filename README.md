@@ -1,6 +1,6 @@
 <div align="center">
 
-# vectractl
+# VectraCtl
 
 **The official CLI for [Vectra](https://github.com/cortexiumlabs/vectra) — Intent-Aware Governance Gateway for Autonomous AI Agents**
 
