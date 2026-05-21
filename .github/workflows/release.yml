@@ -7,11 +7,6 @@ on:
         description: 'Release version (examples: 1.9.0-rc.1, 1.9.1)'
         required: true
         type: string
-      release_summary:
-        description: 'Short summary shown at the top of the release notes (optional)'
-        required: false
-        type: string
-        default: ''
       prerelease:
         description: 'Mark this as a pre-release'
         required: false
@@ -115,11 +110,6 @@ jobs:
     env:
       ARTIFACT_DIR: ./release
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
@@ -152,109 +142,12 @@ jobs:
             sha256sum -b "$i" > "$i.sha256"
           done
 
-      - name: Build release notes
-        id: notes
-        shell: bash
-        env:
-          REL_VERSION: ${{ inputs.rel_version }}
-          RELEASE_SUMMARY: ${{ inputs.release_summary }}
-        run: |
-          set -eu
-
-          VERSION="v${REL_VERSION}"
-          SUMMARY="${RELEASE_SUMMARY}"
-
-          # ── Locate previous tag ──────────────────────────────────────────────
-          # Temporarily disable pipefail: grep exits 1 when there are no matches
-          set +o pipefail
-          PREV_TAG=$(git tag --sort=-version:refname \
-            | grep -v "^${VERSION}$" \
-            | head -n1 || true)
-          set -o pipefail
-
-          if [ -z "$PREV_TAG" ]; then
-            RANGE="HEAD"
-            PREV_LABEL="initial commit"
-            DIFF_URL="https://github.com/${{ github.repository }}/commits/${VERSION}"
-          else
-            RANGE="${PREV_TAG}..HEAD"
-            PREV_LABEL="${PREV_TAG}"
-            DIFF_URL="https://github.com/${{ github.repository }}/compare/${PREV_TAG}...${VERSION}"
-          fi
-
-          COMMIT_COUNT=$(git rev-list $RANGE --count)
-
-          # ── Collect commits by conventional-commit prefix ────────────────────
-          # Write raw log to a temp file so grep never sees an empty pipe
-          # Format: subject|short-hash|full-hash  (no author — git name ≠ GitHub username)
-          RAW_LOG=$(mktemp)
-          git log "$RANGE" --pretty="format:%s|%h|%H" > "$RAW_LOG" || true
-
-          set +o pipefail
-          BREAKING=$(grep -iE  "^[a-z]+(\(.+\))?!:"                                                      "$RAW_LOG" || true)
-          FEATURES=$(grep -iE  "^feat(\(.+\))?:"                                                          "$RAW_LOG" || true)
-          FIXES=$(   grep -iE  "^fix(\(.+\))?:"                                                           "$RAW_LOG" || true)
-          PERF=$(    grep -iE  "^perf(\(.+\))?:"                                                          "$RAW_LOG" || true)
-          OTHERS=$(  grep -viE "^(feat|fix|perf|chore|ci|docs|style|refactor|test|build)(\(.+\))?[!:]:" "$RAW_LOG" || true)
-          set -o pipefail
-
-          rm -f "$RAW_LOG"
-
-          REPO_URL="https://github.com/${{ github.repository }}"
-
-          # ── Helper: emit a markdown section from pipe-delimited commit lines ─
-          format_section() {
-            local title="$1"
-            local items="$2"
-            [ -z "$items" ] && return
-            echo "### ${title}"
-            echo ""
-            while IFS='|' read -r subject shorthash fullhash; do
-              [ -z "$subject" ] && continue
-              echo "- ${subject} ([${shorthash}](${REPO_URL}/commit/${fullhash}))"
-            done <<< "$items"
-            echo ""
-          }
-
-          # ── Compose release_notes.md ─────────────────────────────────────────
-          {
-            echo "## What's in VectraCtl ${VERSION}"
-            echo ""
-            if [ -n "$SUMMARY" ]; then
-              echo "> ${SUMMARY}"
-              echo ""
-            fi
-            printf "| | |\n|---|---|\n"
-            echo "| **Released** | $(date -u +'%B %d, %Y') |"
-            echo "| **Commits**  | ${COMMIT_COUNT} since \`${PREV_LABEL}\` |"
-            echo "| **Full diff** | [${{ github.repository }}](${DIFF_URL}) |"
-            echo ""
-            echo ""
-
-            if [ -n "$BREAKING" ]; then
-              echo "### ⚠️ Breaking Changes"
-              echo ""
-              while IFS='|' read -r subject shorthash fullhash; do
-                [ -z "$subject" ] && continue
-                echo "- ${subject} ([${shorthash}](${REPO_URL}/commit/${fullhash}))"
-              done <<< "$BREAKING"
-              echo ""
-            fi
-
-            format_section "✨ New Features"  "$FEATURES"
-            format_section "🐛 Bug Fixes"     "$FIXES"
-            format_section "⚡ Performance"   "$PERF"
-            format_section "🔀 Other Changes" "$OTHERS"
-          } > release_notes.md
-
-          echo "Release notes written ($(wc -l < release_notes.md) lines)"
-
       - name: Create Release
         uses: ncipollo/release-action@40bb172bd05f266cf9ba4ff965cb61e9ee5f6d01 # v1.9.0
         with:
           tag: v${{ inputs.rel_version }}
           name: VectraCtl v${{ inputs.rel_version }}
-          bodyFile: release_notes.md
+          generateReleaseNotes: true
           prerelease: ${{ inputs.prerelease }}
           artifacts: "${{ env.ARTIFACT_DIR }}/*"
           token: ${{ secrets.GITHUB_TOKEN }}
