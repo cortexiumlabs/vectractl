@@ -19,7 +19,7 @@ public class LocationService : ILocation
 
     public string DefaultVectraDirectoryName => Path.Combine(UserProfilePath, ".vectra");
 
-    public string DefaultVectraBinaryDirectoryName => Path.Combine(DefaultVectraDirectoryName, "bin");
+    public string DefaultVectraBinaryDirectoryName => Path.Combine(DefaultVectraDirectoryName, "gateway");
 
     public string VectraBinaryName => "vectra";
 
