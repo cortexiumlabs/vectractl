@@ -1,4 +1,4 @@
-name: vectractl
+name: Release
 
 on:
   workflow_dispatch:
@@ -70,7 +70,7 @@ jobs:
         shell: bash
         run: |
           release_name="vectractl-${{ matrix.title }}-${{ matrix.os_arch }}"
-          dotnet publish src/FlowCtl/FlowCtl.csproj \
+          dotnet publish src/VectraCtl/VectraCtl.csproj \
             /property:PublishSingleFile=true \
             /property:PublishReadyToRun=true \
             --runtime "${{ matrix.kind }}-${{ matrix.os_arch }}" \
