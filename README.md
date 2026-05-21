@@ -41,13 +41,6 @@ Vectra is an **Intent-Aware Governance Gateway** that sits between autonomous AI
 
 `vectractl` is the companion CLI that lets platform engineers, DevOps teams, and AI developers interact with the gateway from the terminal or from CI/CD pipelines.
 
-```
-AI Agent  ──►  Vectra Gateway  ──►  External Systems
-                    │
-               vectractl
-          (manage, audit, approve)
-```
-
 ## Prerequisites
 
 | Requirement | Minimum Version |
