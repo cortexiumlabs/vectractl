@@ -1,0 +1,220 @@
+name: vectractl
+
+on:
+  workflow_dispatch:
+    inputs:
+      rel_version:
+        description: 'Release version (examples: 1.9.0-rc.1, 1.9.1)'
+        required: true
+        type: string
+      release_summary:
+        description: 'Short summary shown at the top of the release notes (optional)'
+        required: false
+        type: string
+        default: ''
+      prerelease:
+        description: 'Mark this as a pre-release'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  packages: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate version format
+        run: |
+          if ! echo "${{ inputs.rel_version }}" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$'; then
+            echo "Invalid version format: ${{ inputs.rel_version }}"
+            exit 1
+          fi
+
+  build:
+    needs: validate
+    strategy:
+      matrix:
+        os: ['ubuntu-latest', 'windows-latest', 'macos-latest']
+        os_arch: [x64, arm, arm64]
+        include:
+          - os: ubuntu-latest
+            kind: linux
+            title: linux
+          - os: windows-latest
+            kind: win
+            title: windows
+          - os: macos-latest
+            kind: osx
+            title: osx
+        exclude:
+          - os: windows-latest
+            os_arch: arm
+          - os: macos-latest
+            os_arch: arm
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Publish
+        shell: bash
+        run: |
+          release_name="vectractl-${{ matrix.title }}-${{ matrix.os_arch }}"
+          dotnet publish src/FlowCtl/FlowCtl.csproj \
+            /property:PublishSingleFile=true \
+            /property:PublishReadyToRun=true \
+            --runtime "${{ matrix.kind }}-${{ matrix.os_arch }}" \
+            -c Release \
+            --self-contained true \
+            /property:Version="${{ inputs.rel_version }}" \
+            -o "${{ github.workspace }}/${release_name}"
+
+          mkdir -p "${{ github.workspace }}/dist"
+          cd "${{ github.workspace }}/${release_name}"
+          if [ "${{ matrix.kind }}" == "win" ]; then
+            7z a -tzip "${{ github.workspace }}/dist/${release_name}.zip" *
+          else
+            tar czvf "${{ github.workspace }}/dist/${release_name}.tar.gz" *
+          fi
+
+      - name: Upload binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: vectractl-${{ matrix.title }}-${{ matrix.os_arch }}
+          path: "${{ github.workspace }}/dist"
+
+  release:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    env:
+      ARTIFACT_DIR: ./release
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: vectractl-*
+          path: ${{ env.ARTIFACT_DIR }}
+          merge-multiple: true
+
+      - name: Generate checksum files
+        run: |
+          cd ${{ env.ARTIFACT_DIR }}
+          for i in *.zip *.tar.gz; do
+            [ -f "$i" ] && sha256sum -b "$i" > "$i.sha256"
+          done
+
+      - name: Build release notes
+        id: notes
+        shell: bash
+        run: |
+          VERSION="v${{ inputs.rel_version }}"
+          SUMMARY="${{ inputs.release_summary }}"
+
+          # Find previous tag to diff against; fall back to first commit
+          PREV_TAG=$(git tag --sort=-version:refname | grep -v "^${VERSION}$" | head -n1)
+          if [ -z "$PREV_TAG" ]; then
+            RANGE="HEAD"
+            PREV_LABEL="initial commit"
+          else
+            RANGE="${PREV_TAG}..HEAD"
+            PREV_LABEL="${PREV_TAG}"
+          fi
+
+          COMMIT_COUNT=$(git rev-list $RANGE --count)
+
+          # Collect commits grouped by conventional-commit prefix
+          BREAKING=$(git log "$RANGE" --pretty="format:%s|%h|%an" | grep -iE "^[a-z]+(\(.+\))?!:" || true)
+          FEATURES=$(git log "$RANGE" --pretty="format:%s|%h|%an" | grep -iE "^feat(\(.+\))?:" || true)
+          FIXES=$(git log "$RANGE" --pretty="format:%s|%h|%an" | grep -iE "^fix(\(.+\))?:" || true)
+          PERF=$(git log "$RANGE" --pretty="format:%s|%h|%an" | grep -iE "^perf(\(.+\))?:" || true)
+          OTHERS=$(git log "$RANGE" --pretty="format:%s|%h|%an" \
+            | grep -viE "^(feat|fix|perf|chore|ci|docs|style|refactor|test|build)(\(.+\))?[!:]?" || true)
+
+          format_section() {
+            local title="$1"
+            local items="$2"
+            if [ -n "$items" ]; then
+              echo "### ${title}"
+              echo ""
+              while IFS='|' read -r subject hash author; do
+                echo "- ${subject} (\`${hash}\`) — @${author}"
+              done <<< "$items"
+              echo ""
+            fi
+          }
+
+          {
+            echo "## What's in VectraCtl ${VERSION}"
+            echo ""
+            if [ -n "$SUMMARY" ]; then
+              echo "> ${SUMMARY}"
+              echo ""
+            fi
+            echo "| | |"
+            echo "|---|---|"
+            echo "| **Released** | $(date -u +'%B %d, %Y') |"
+            echo "| **Commits** | ${COMMIT_COUNT} since \`${PREV_LABEL}\` |"
+            echo "| **Full diff** | [${{ github.repository }}](https://github.com/${{ github.repository }}/compare/${PREV_LABEL}...${VERSION}) |"
+            echo ""
+            echo "---"
+            echo ""
+
+            if [ -n "$BREAKING" ]; then
+              echo "### ⚠️ Breaking Changes"
+              echo ""
+              while IFS='|' read -r subject hash author; do
+                echo "- ${subject} (\`${hash}\`) — @${author}"
+              done <<< "$BREAKING"
+              echo ""
+            fi
+
+            format_section "✨ New Features" "$FEATURES"
+            format_section "🐛 Bug Fixes" "$FIXES"
+            format_section "⚡ Performance" "$PERF"
+            format_section "🔀 Other Changes" "$OTHERS"
+
+            echo "---"
+            echo ""
+            echo "### 📦 Installation"
+            echo ""
+            echo "Download the archive for your platform from the assets below,"
+            echo "verify its checksum, then extract."
+            echo ""
+            echo '```bash'
+            echo "# Linux / macOS"
+            echo "sha256sum -c vectractl-<platform>-<arch>.tar.gz.sha256"
+            echo "tar -xzf  vectractl-<platform>-<arch>.tar.gz"
+            echo '```'
+            echo ""
+            echo '```powershell'
+            echo "# Windows (PowerShell)"
+            echo "Get-FileHash vectractl-windows-x64.zip -Algorithm SHA256"
+            echo "Expand-Archive vectractl-windows-x64.zip"
+            echo '```'
+          } > release_notes.md
+
+      - name: Create Release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: v${{ inputs.rel_version }}
+          name: VectraCtl v${{ inputs.rel_version }}
+          bodyFile: release_notes.md
+          prerelease: ${{ inputs.prerelease }}
+          artifacts: "${{ env.ARTIFACT_DIR }}/*"
+          token: ${{ secrets.GITHUB_TOKEN }}
