@@ -112,11 +112,30 @@ jobs:
           path: ${{ env.ARTIFACT_DIR }}
           merge-multiple: true
 
-      - name: Generate checksum files
+      - name: Inspect downloaded artifacts
+        shell: bash
         run: |
-          cd ${{ env.ARTIFACT_DIR }}
-          for i in *.zip *.tar.gz; do
-            [ -f "$i" ] && sha256sum -b "$i" > "$i.sha256"
+          set -euo pipefail
+          echo "Contents of ${{ env.ARTIFACT_DIR }}:"
+          find "${{ env.ARTIFACT_DIR }}" -maxdepth 2 -type f | sort
+
+      - name: Generate checksum files
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "${{ env.ARTIFACT_DIR }}"
+
+          shopt -s nullglob
+          files=( *.zip *.tar.gz )
+
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No release archives were downloaded into ${PWD}"
+            ls -la
+            exit 1
+          fi
+
+          for i in "${files[@]}"; do
+            sha256sum -b "$i" > "$i.sha256"
           done
 
       - name: Build release notes
@@ -131,9 +150,11 @@ jobs:
           if [ -z "$PREV_TAG" ]; then
             RANGE="HEAD"
             PREV_LABEL="initial commit"
+            DIFF_URL="https://github.com/${{ github.repository }}/commits/${VERSION}"
           else
             RANGE="${PREV_TAG}..HEAD"
             PREV_LABEL="${PREV_TAG}"
+            DIFF_URL="https://github.com/${{ github.repository }}/compare/${PREV_TAG}...${VERSION}"
           fi
 
           COMMIT_COUNT=$(git rev-list $RANGE --count)
@@ -170,7 +191,7 @@ jobs:
             echo "|---|---|"
             echo "| **Released** | $(date -u +'%B %d, %Y') |"
             echo "| **Commits** | ${COMMIT_COUNT} since \`${PREV_LABEL}\` |"
-            echo "| **Full diff** | [${{ github.repository }}](https://github.com/${{ github.repository }}/compare/${PREV_LABEL}...${VERSION}) |"
+            echo "| **Full diff** | [${{ github.repository }}](${DIFF_URL}) |"
             echo ""
             echo "---"
             echo ""
