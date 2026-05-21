@@ -179,8 +179,9 @@ jobs:
 
           # ── Collect commits by conventional-commit prefix ────────────────────
           # Write raw log to a temp file so grep never sees an empty pipe
+          # Format: subject|short-hash|full-hash  (no author — git name ≠ GitHub username)
           RAW_LOG=$(mktemp)
-          git log "$RANGE" --pretty="format:%s|%h|%an" > "$RAW_LOG" || true
+          git log "$RANGE" --pretty="format:%s|%h|%H" > "$RAW_LOG" || true
 
           set +o pipefail
           BREAKING=$(grep -iE  "^[a-z]+(\(.+\))?!:"                                                      "$RAW_LOG" || true)
@@ -192,6 +193,8 @@ jobs:
 
           rm -f "$RAW_LOG"
 
+          REPO_URL="https://github.com/${{ github.repository }}"
+
           # ── Helper: emit a markdown section from pipe-delimited commit lines ─
           format_section() {
             local title="$1"
@@ -199,9 +202,9 @@ jobs:
             [ -z "$items" ] && return
             echo "### ${title}"
             echo ""
-            while IFS='|' read -r subject hash author; do
+            while IFS='|' read -r subject shorthash fullhash; do
               [ -z "$subject" ] && continue
-              echo "- ${subject} (\`${hash}\`) — @${author}"
+              echo "- ${subject} ([${shorthash}](${REPO_URL}/commit/${fullhash}))"
             done <<< "$items"
             echo ""
           }
@@ -219,15 +222,14 @@ jobs:
             echo "| **Commits**  | ${COMMIT_COUNT} since \`${PREV_LABEL}\` |"
             echo "| **Full diff** | [${{ github.repository }}](${DIFF_URL}) |"
             echo ""
-            echo "---"
             echo ""
 
             if [ -n "$BREAKING" ]; then
               echo "### ⚠️ Breaking Changes"
               echo ""
-              while IFS='|' read -r subject hash author; do
+              while IFS='|' read -r subject shorthash fullhash; do
                 [ -z "$subject" ] && continue
-                echo "- ${subject} (\`${hash}\`) — @${author}"
+                echo "- ${subject} ([${shorthash}](${REPO_URL}/commit/${fullhash}))"
               done <<< "$BREAKING"
               echo ""
             fi
@@ -236,25 +238,6 @@ jobs:
             format_section "🐛 Bug Fixes"     "$FIXES"
             format_section "⚡ Performance"   "$PERF"
             format_section "🔀 Other Changes" "$OTHERS"
-
-            echo "---"
-            echo ""
-            echo "### 📦 Installation"
-            echo ""
-            echo "Download the archive for your platform from the assets below,"
-            echo "verify its checksum, then extract."
-            echo ""
-            echo '```bash'
-            echo "# Linux / macOS"
-            echo "sha256sum -c vectractl-<platform>-<arch>.tar.gz.sha256"
-            echo "tar -xzf  vectractl-<platform>-<arch>.tar.gz"
-            echo '```'
-            echo ""
-            echo '```powershell'
-            echo "# Windows (PowerShell)"
-            echo "Get-FileHash vectractl-windows-x64.zip -Algorithm SHA256"
-            echo "Expand-Archive vectractl-windows-x64.zip"
-            echo '```'
           } > release_notes.md
 
           echo "Release notes written ($(wc -l < release_notes.md) lines)"
