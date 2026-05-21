@@ -152,11 +152,19 @@ jobs:
         id: notes
         shell: bash
         run: |
+          set -eu
+
           VERSION="v${{ inputs.rel_version }}"
           SUMMARY="${{ inputs.release_summary }}"
 
-          # Find previous tag to diff against; fall back to first commit
-          PREV_TAG=$(git tag --sort=-version:refname | grep -v "^${VERSION}$" | head -n1)
+          # ── Locate previous tag ──────────────────────────────────────────────
+          # Temporarily disable pipefail: grep exits 1 when there are no matches
+          set +o pipefail
+          PREV_TAG=$(git tag --sort=-version:refname \
+            | grep -v "^${VERSION}$" \
+            | head -n1 || true)
+          set -o pipefail
+
           if [ -z "$PREV_TAG" ]; then
             RANGE="HEAD"
             PREV_LABEL="initial commit"
@@ -169,27 +177,36 @@ jobs:
 
           COMMIT_COUNT=$(git rev-list $RANGE --count)
 
-          # Collect commits grouped by conventional-commit prefix
-          BREAKING=$(git log "$RANGE" --pretty="format:%s|%h|%an" | grep -iE "^[a-z]+(\(.+\))?!:" || true)
-          FEATURES=$(git log "$RANGE" --pretty="format:%s|%h|%an" | grep -iE "^feat(\(.+\))?:" || true)
-          FIXES=$(git log "$RANGE" --pretty="format:%s|%h|%an" | grep -iE "^fix(\(.+\))?:" || true)
-          PERF=$(git log "$RANGE" --pretty="format:%s|%h|%an" | grep -iE "^perf(\(.+\))?:" || true)
-          OTHERS=$(git log "$RANGE" --pretty="format:%s|%h|%an" \
-            | grep -viE "^(feat|fix|perf|chore|ci|docs|style|refactor|test|build)(\(.+\))?[!:]?" || true)
+          # ── Collect commits by conventional-commit prefix ────────────────────
+          # Write raw log to a temp file so grep never sees an empty pipe
+          RAW_LOG=$(mktemp)
+          git log "$RANGE" --pretty="format:%s|%h|%an" > "$RAW_LOG" || true
 
+          set +o pipefail
+          BREAKING=$(grep -iE  "^[a-z]+(\(.+\))?!:"                                                      "$RAW_LOG" || true)
+          FEATURES=$(grep -iE  "^feat(\(.+\))?:"                                                          "$RAW_LOG" || true)
+          FIXES=$(   grep -iE  "^fix(\(.+\))?:"                                                           "$RAW_LOG" || true)
+          PERF=$(    grep -iE  "^perf(\(.+\))?:"                                                          "$RAW_LOG" || true)
+          OTHERS=$(  grep -viE "^(feat|fix|perf|chore|ci|docs|style|refactor|test|build)(\(.+\))?[!:]:" "$RAW_LOG" || true)
+          set -o pipefail
+
+          rm -f "$RAW_LOG"
+
+          # ── Helper: emit a markdown section from pipe-delimited commit lines ─
           format_section() {
             local title="$1"
             local items="$2"
-            if [ -n "$items" ]; then
-              echo "### ${title}"
-              echo ""
-              while IFS='|' read -r subject hash author; do
-                echo "- ${subject} (\`${hash}\`) — @${author}"
-              done <<< "$items"
-              echo ""
-            fi
+            [ -z "$items" ] && return
+            echo "### ${title}"
+            echo ""
+            while IFS='|' read -r subject hash author; do
+              [ -z "$subject" ] && continue
+              echo "- ${subject} (\`${hash}\`) — @${author}"
+            done <<< "$items"
+            echo ""
           }
 
+          # ── Compose release_notes.md ─────────────────────────────────────────
           {
             echo "## What's in VectraCtl ${VERSION}"
             echo ""
@@ -197,10 +214,9 @@ jobs:
               echo "> ${SUMMARY}"
               echo ""
             fi
-            echo "| | |"
-            echo "|---|---|"
+            printf "| | |\n|---|---|\n"
             echo "| **Released** | $(date -u +'%B %d, %Y') |"
-            echo "| **Commits** | ${COMMIT_COUNT} since \`${PREV_LABEL}\` |"
+            echo "| **Commits**  | ${COMMIT_COUNT} since \`${PREV_LABEL}\` |"
             echo "| **Full diff** | [${{ github.repository }}](${DIFF_URL}) |"
             echo ""
             echo "---"
@@ -210,14 +226,15 @@ jobs:
               echo "### ⚠️ Breaking Changes"
               echo ""
               while IFS='|' read -r subject hash author; do
+                [ -z "$subject" ] && continue
                 echo "- ${subject} (\`${hash}\`) — @${author}"
               done <<< "$BREAKING"
               echo ""
             fi
 
-            format_section "✨ New Features" "$FEATURES"
-            format_section "🐛 Bug Fixes" "$FIXES"
-            format_section "⚡ Performance" "$PERF"
+            format_section "✨ New Features"  "$FEATURES"
+            format_section "🐛 Bug Fixes"     "$FIXES"
+            format_section "⚡ Performance"   "$PERF"
             format_section "🔀 Other Changes" "$OTHERS"
 
             echo "---"
@@ -239,6 +256,8 @@ jobs:
             echo "Expand-Archive vectractl-windows-x64.zip"
             echo '```'
           } > release_notes.md
+
+          echo "Release notes written ($(wc -l < release_notes.md) lines)"
 
       - name: Create Release
         uses: ncipollo/release-action@v1
