@@ -5,6 +5,9 @@ namespace VectraCtl.Infrastructure.Services.Docker;
 
 public class DockerService : IDockerService
 {
+    private static readonly string[] DockerInfoOsTypeArgs = ["info", "--format", "{{.OSType}}"];
+    private static readonly string[] DockerInfoArgs = ["info"];
+
     private readonly IDockerProcessRunner _runner;
 
     public DockerService(IDockerProcessRunner runner)
@@ -14,7 +17,7 @@ public class DockerService : IDockerService
 
     public async Task<string> GetDockerModeAsync(CancellationToken cancellationToken = default)
     {
-        var result = await RunDockerAsync(new[] { "info", "--format", "{{.OSType}}" }, streamOutput: false, cancellationToken);
+        var result = await RunDockerAsync(DockerInfoOsTypeArgs, streamOutput: false, cancellationToken);
         if (!result.Success || string.IsNullOrWhiteSpace(result.Output))
         {
             return "Unknown";
@@ -32,7 +35,7 @@ public class DockerService : IDockerService
 
     public Task<bool> IsDockerAvailableAsync(CancellationToken cancellationToken = default)
     {
-        return ContainerQueryAsync(new[] { "info" }, cancellationToken);
+        return ContainerQueryAsync(DockerInfoArgs, cancellationToken);
     }
 
     public Task<DockerCommandResult> PullImageAsync(string imageName, string tag, CancellationToken cancellationToken = default)
@@ -45,23 +48,22 @@ public class DockerService : IDockerService
 
     public Task<DockerCommandResult> RunContainerAsync(DockerRunOptions options, CancellationToken cancellationToken = default)
     {
-        if (options == null)
-            throw new ArgumentNullException(nameof(options));
+        ArgumentNullException.ThrowIfNull(options);
 
         if (string.IsNullOrWhiteSpace(options.ImageName))
-            throw new ArgumentException("Image name is required.", nameof(options.ImageName));
+            throw new ArgumentException("Image name is required.", nameof(options));
 
         if (string.IsNullOrWhiteSpace(options.Tag))
-            throw new ArgumentException("Image tag is required.", nameof(options.Tag));
+            throw new ArgumentException("Image tag is required.", nameof(options));
 
         if (string.IsNullOrWhiteSpace(options.ContainerName))
-            throw new ArgumentException("Container name is required.", nameof(options.ContainerName));
+            throw new ArgumentException("Container name is required.", nameof(options));
 
         if (string.IsNullOrWhiteSpace(options.HostDataPath))
-            throw new ArgumentException("Host data path is required.", nameof(options.HostDataPath));
+            throw new ArgumentException("Host data path is required.", nameof(options));
 
         if (string.IsNullOrWhiteSpace(options.ContainerDataPath))
-            throw new ArgumentException("Container data path is required.", nameof(options.ContainerDataPath));
+            throw new ArgumentException("Container data path is required.", nameof(options));
 
         Directory.CreateDirectory(options.HostDataPath);
 
