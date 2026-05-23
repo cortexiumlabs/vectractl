@@ -64,13 +64,13 @@ verify_supported() {
 }
 
 run_as_root() {
-    local CMD="$*"
+    local cmd="$*"
 
     if [[ $EUID -ne 0 && $USE_SUDO = "true" ]]; then
-        CMD="sudo $CMD"
+        cmd="sudo $cmd"
     fi
 
-    $CMD || {
+    $cmd || {
         echo "Please visit https://github.com/cortexiumlabs/vectractl for instructions on how to install without sudo."
         exit 1
     }
@@ -200,6 +200,7 @@ fail_trap() {
     fi
     cleanup
     exit $result
+    return
 }
 
 cleanup() {
