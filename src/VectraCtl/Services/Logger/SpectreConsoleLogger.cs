@@ -62,7 +62,7 @@ public class SpectreConsoleLogger : IVectraCtlLogger
                 Indented = true
             });
 
-    private Table GenerateTable(string? json)
+    private static Table GenerateTable(string? json)
     {
         var table = new Table
         {
@@ -182,7 +182,7 @@ public class SpectreConsoleLogger : IVectraCtlLogger
         };
     }
 
-    public string GenerateYaml(string? data)
+    public static string GenerateYaml(string? data)
     {
         if (string.IsNullOrWhiteSpace(data))
             return string.Empty;

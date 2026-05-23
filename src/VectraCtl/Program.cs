@@ -20,7 +20,7 @@ try
     var cli = serviceProvider.GetService<ICliApplicationBuilder>();
 
     return cli == null 
-        ? throw new Exception("Something wrong happen during execute the application") 
+        ? throw new InvalidOperationException("Something wrong happen during execute the application") 
         : await cli.RunAsync(args);
 }
 catch (Exception ex)
