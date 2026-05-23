@@ -17,9 +17,9 @@ public class SystemDockerProcessRunner : IDockerProcessRunner
     protected virtual string Executable => "docker";
 
     public async Task<DockerCommandResult> RunAsync(IEnumerable<string> arguments, bool streamOutput, CancellationToken cancellationToken)
-        => await RunAsync(arguments, streamOutput, cancellationToken, executableOverride: null);
+        => await RunAsync(arguments, streamOutput, executableOverride: null, cancellationToken);
 
-    internal async Task<DockerCommandResult> RunAsync(IEnumerable<string> arguments, bool streamOutput, CancellationToken cancellationToken, string? executableOverride)
+    internal async Task<DockerCommandResult> RunAsync(IEnumerable<string> arguments, bool streamOutput, string? executableOverride, CancellationToken cancellationToken)
     {
         var outputBuilder = new StringBuilder();
         var errorBuilder = new StringBuilder();

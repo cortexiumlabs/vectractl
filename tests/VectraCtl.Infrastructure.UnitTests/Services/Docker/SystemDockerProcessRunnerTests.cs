@@ -140,7 +140,7 @@ public class SystemDockerProcessRunnerTests
         public new Task<DockerCommandResult> RunAsync(
             IEnumerable<string> arguments, bool streamOutput, CancellationToken cancellationToken)
         {
-            return base.RunAsync(_fixedArgs, streamOutput, cancellationToken, executableOverride: _exe);
+            return base.RunAsync(_fixedArgs, streamOutput, executableOverride: _exe, cancellationToken);
         }
     }
 }
