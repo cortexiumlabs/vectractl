@@ -76,20 +76,20 @@ public class SpectreConsoleLoggerTests
     [Fact]
     public void GenerateYaml_NullData_ReturnsEmpty()
     {
-        _sut.GenerateYaml(null).Should().BeEmpty();
+        SpectreConsoleLogger.GenerateYaml(null).Should().BeEmpty();
     }
 
     [Fact]
     public void GenerateYaml_WhitespaceData_ReturnsEmpty()
     {
-        _sut.GenerateYaml("   ").Should().BeEmpty();
+        SpectreConsoleLogger.GenerateYaml("   ").Should().BeEmpty();
     }
 
     [Fact]
     public void GenerateYaml_SimpleJsonObject_ReturnsYaml()
     {
         var json = """{"name":"Alice","age":30}""";
-        var result = _sut.GenerateYaml(json);
+        var result = SpectreConsoleLogger.GenerateYaml(json);
 
         result.Should().Contain("Alice");
         result.Should().Contain("30");
@@ -99,7 +99,7 @@ public class SpectreConsoleLoggerTests
     public void GenerateYaml_JsonArray_ReturnsYamlList()
     {
         var json = """[{"name":"Alice"},{"name":"Bob"}]""";
-        var result = _sut.GenerateYaml(json);
+        var result = SpectreConsoleLogger.GenerateYaml(json);
 
         result.Should().Contain("Alice");
         result.Should().Contain("Bob");
