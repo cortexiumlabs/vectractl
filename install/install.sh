@@ -18,7 +18,7 @@ VECTRACTL_FILENAME=vectractl
 
 VECTRACTL_FILE="${VECTRACTL_INSTALL_DIR}/${VECTRACTL_FILENAME}"
 
-getSystemInfo() {
+get_system_info() {
     ARCH=$(uname -m)
     case $ARCH in
         armv7*) ARCH="arm";;
@@ -36,7 +36,7 @@ getSystemInfo() {
     return
 }
 
-verifySupported() {
+verify_supported() {
     releaseTag=$1
     local supported=(darwin-x64 linux-x64 linux-arm linux-arm64)
     local current_osarch="${OS}-${ARCH}"
@@ -49,7 +49,7 @@ verifySupported() {
     done
 
     if [[ "$current_osarch" == "darwin-arm64" ]]; then
-        if isReleaseAvailable "$releaseTag"; then
+        if is_release_available "$releaseTag"; then
             return
         else
             echo "The darwin_arm64 arch has no native binary for this version of VectraCtl, however you can use the amd64 version so long as you have rosetta installed"
@@ -63,7 +63,7 @@ verifySupported() {
     exit 1
 }
 
-runAsRoot() {
+run_as_root() {
     local CMD="$*"
 
     if [[ $EUID -ne 0 && $USE_SUDO = "true" ]]; then
@@ -77,7 +77,7 @@ runAsRoot() {
     return
 }
 
-checkHttpRequestVectraCtl() {
+check_http_request_vectractl() {
     if type "curl" > /dev/null; then
         HTTP_REQUEST_VECTRACTL=curl
     elif type "wget" > /dev/null; then
@@ -89,7 +89,7 @@ checkHttpRequestVectraCtl() {
     return
 }
 
-checkExistingVectraCtl() {
+check_existing_vectractl() {
     if [[ -f "$VECTRACTL_FILE" ]]; then
         echo -e "\nVectraCtl is detected:"
         "$VECTRACTL_FILE" --version
@@ -100,7 +100,7 @@ checkExistingVectraCtl() {
     return
 }
 
-getLatestRelease() {
+get_latest_release() {
     local vectractl_release_url="https://api.github.com/repos/${GITHUB_ORG}/${GITHUB_REPO}/releases"
     local latest_release=""
 
@@ -118,7 +118,7 @@ getLatestRelease() {
     return
 }
 
-downloadFile() {
+download_file() {
     LATEST_RELEASE_TAG=$1
 
     VECTRACTL_ARTIFACT="${VECTRACTL_FILENAME}-${OS}-${ARCH}.tar.gz"
@@ -143,7 +143,7 @@ downloadFile() {
     return
 }
 
-isReleaseAvailable() {
+is_release_available() {
     LATEST_RELEASE_TAG=$1
 
     VECTRACTL_ARTIFACT="${VECTRACTL_FILENAME}-${OS}-${ARCH}.tar.gz"
@@ -165,7 +165,7 @@ isReleaseAvailable() {
     return 1
 }
 
-installFile() {
+install_file() {
     tar xf "$ARTIFACT_TMP_FILE" -C "$VECTRACTL_TMP_ROOT"
     local tmp_root_vectractl="$VECTRACTL_TMP_ROOT/$VECTRACTL_FILENAME"
 
@@ -175,11 +175,11 @@ installFile() {
     fi
 
     if [[ -f "$VECTRACTL_FILE" ]]; then
-        runAsRoot rm "$VECTRACTL_FILE"
+        run_as_root rm "$VECTRACTL_FILE"
     fi
     chmod +x "$tmp_root_vectractl"
     mkdir -p "$VECTRACTL_INSTALL_DIR"
-    runAsRoot cp "$tmp_root_vectractl" "$VECTRACTL_INSTALL_DIR"
+    run_as_root cp "$tmp_root_vectractl" "$VECTRACTL_INSTALL_DIR"
 
     if [[ -f "$VECTRACTL_FILE" ]]; then
         echo "$VECTRACTL_FILENAME installed into $VECTRACTL_INSTALL_DIR successfully."
@@ -209,7 +209,7 @@ cleanup() {
     return
 }
 
-installCompleted() {
+install_completed() {
     echo -e "\nTo get started with VectraCtl, please visit https://github.com/cortexiumlabs/vectractl"
     return
 }
@@ -219,23 +219,23 @@ installCompleted() {
 # -----------------------------------------------------------------------------
 trap "fail_trap" EXIT
 
-getSystemInfo
-checkHttpRequestVectraCtl
+get_system_info
+check_http_request_vectractl
 
 if [[ -z "$1" ]]; then
     echo "Getting the latest VectraCtl..."
-    getLatestRelease
+    get_latest_release
 else
     ret_val=v$1
 fi
 
-verifySupported $ret_val
-checkExistingVectraCtl
+verify_supported $ret_val
+check_existing_vectractl
 
 echo "Installing $ret_val VectraCtl..."
 
-downloadFile $ret_val
-installFile
+download_file $ret_val
+install_file
 cleanup
 
-installCompleted
+install_completed

@@ -47,7 +47,7 @@ else {
 # Create VectraCtl Directory
 Write-Output "Creating $VectraCtlRootPath directory"
 New-Item -ErrorAction Ignore -Path $VectraCtlRootPath -ItemType "directory"
-if (!(Test-Path $VectraCtlRootPath -PathType Container)) {
+if (-not (Test-Path $VectraCtlRootPath -PathType Container)) {
     Write-Warning "Please visit https://github.com/cortexiumlabs/vectractl for instructions on how to install without admin rights."
     throw "Cannot create $VectraCtlRootPath"
 }
@@ -67,7 +67,7 @@ function GetVersionInfo {
         $Releases
     )
     # Filter windows binary and download archive
-    if (!$Version) {
+    if (-not $Version) {
         $release = $Releases | Where-Object { $_.tag_name -notlike "*rc*" } | Select-Object -First 1
     }
     else {
@@ -83,7 +83,7 @@ function GetWindowsAsset {
         $Release
     )
     $windowsAsset = $Release | Select-Object -ExpandProperty assets | Where-Object { $_.name -like "*windows-x64.zip" }
-    if (!$windowsAsset) {
+    if (-not $windowsAsset) {
         throw "Cannot find the windows VectraCtl binary"
     }
     [hashtable]$return = @{}
@@ -94,7 +94,7 @@ function GetWindowsAsset {
 }
 
 $release = GetVersionInfo -Version $Version -Releases $releases
-if (!$release) {
+if (-not $release) {
     throw "Cannot find the specified VectraCtl binary version"
 }
 $asset = GetWindowsAsset -Release $release
@@ -109,14 +109,14 @@ $oldProgressPreference = $global:ProgressPreference
 $global:ProgressPreference = 'SilentlyContinue'
 Invoke-WebRequest -Headers $githubHeader -Uri $zipFileUrl -OutFile $zipFilePath
 $global:ProgressPreference = $oldProgressPreference
-if (!(Test-Path $zipFilePath -PathType Leaf)) {
+if (-not (Test-Path $zipFilePath -PathType Leaf)) {
     throw "Failed to download VectraCtl binary - $zipFilePath"
 }
 
 # Extract VectraCtl to $VectraCtlRootPath
 Write-Output "Extracting $zipFilePath..."
 Microsoft.Powershell.Archive\Expand-Archive -Force -Path $zipFilePath -DestinationPath $VectraCtlRootPath
-if (!(Test-Path $VectraCtlFilePath -PathType Leaf)) {
+if (-not (Test-Path $VectraCtlFilePath -PathType Leaf)) {
     throw "Failed to extract VectraCtl archive - $zipFilePath"
 }
 
