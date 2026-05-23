@@ -105,9 +105,9 @@ getLatestRelease() {
     local latest_release=""
 
     if [[ "$HTTP_REQUEST_VECTRACTL" == "curl" ]]; then
-        latest_release=$(curl -s "$vectractl_release_url" | grep \"tag_name\" | grep -v rc | awk 'NR==1{print $2}' |  sed -n 's/\"\(.*\)\",/\1/p')
+        latest_release=$(curl -s --proto "=https" "$vectractl_release_url" | grep \"tag_name\" | grep -v rc | awk 'NR==1{print $2}' |  sed -n 's/\"\(.*\)\",/\1/p')
     else
-        latest_release=$(wget -q --https-only --header="Accept: application/json" -O - "$vectractl_release_url" | grep \"tag_name\" | grep -v rc | awk 'NR==1{print $2}' |  sed -n 's/\"\(.*\)\",/\1/p')
+        latest_release=$(wget -q --max-redirect=0 --https-only --header="Accept: application/json" -O - "$vectractl_release_url" | grep \"tag_name\" | grep -v rc | awk 'NR==1{print $2}' |  sed -n 's/\"\(.*\)\",/\1/p')
     fi
 
     if [[ -z "$latest_release" ]]; then
@@ -131,9 +131,9 @@ downloadFile() {
 
     echo "Downloading $DOWNLOAD_URL ..."
     if [[ "$HTTP_REQUEST_VECTRACTL" == "curl" ]]; then
-        curl -SsL --proto-redir =https "$DOWNLOAD_URL" -o "$ARTIFACT_TMP_FILE"
+        curl -SsL --proto =https "$DOWNLOAD_URL" -o "$ARTIFACT_TMP_FILE"
     else
-        wget -q --https-only -O "$ARTIFACT_TMP_FILE" "$DOWNLOAD_URL"
+        wget -q --max-redirect=0 --https-only -O "$ARTIFACT_TMP_FILE" "$DOWNLOAD_URL"
     fi
 
     if [[ ! -f "$ARTIFACT_TMP_FILE" ]]; then
@@ -151,12 +151,12 @@ isReleaseAvailable() {
     DOWNLOAD_URL="${DOWNLOAD_BASE}/${LATEST_RELEASE_TAG}/${VECTRACTL_ARTIFACT}"
 
     if [[ "$HTTP_REQUEST_VECTRACTL" == "curl" ]]; then
-        httpstatus=$(curl -sSLI --proto-redir =https -o /dev/null -w "%{http_code}" "$DOWNLOAD_URL")
+        httpstatus=$(curl -sSLI --proto "=https" -o /dev/null -w "%{http_code}" "$DOWNLOAD_URL")
         if [[ "$httpstatus" == "200" ]]; then
             return 0
         fi
     else
-        wget -q --https-only --spider "$DOWNLOAD_URL"
+        wget -q --max-redirect=0 --https-only --spider "$DOWNLOAD_URL"
         exitstatus=$?
         if [[ $exitstatus -eq 0 ]]; then
             return 0
