@@ -261,19 +261,9 @@ internal static class RunCommand
         return NormalizeDockerVersion(version);
     }
 
-    private static async Task<string?> GetPlatformSuffixAsync(IDockerService docker, CancellationToken cancellationToken)
-    {
-        var mode = await docker.GetDockerModeAsync(cancellationToken);
-        return mode == "Windows" ? "windows-ltsc2022-amd64" : "linux-amd64";
-    }
+    private static Task<string?> GetPlatformSuffixAsync(IDockerService docker, CancellationToken cancellationToken)
+        => CommandHelpers.GetPlatformSuffixAsync(docker, cancellationToken);
 
     private static string NormalizeDockerVersion(string? version)
-    {
-        if (string.IsNullOrWhiteSpace(version))
-            return string.Empty;
-
-        return version.StartsWith("v", StringComparison.OrdinalIgnoreCase)
-            ? version[1..]
-            : version;
-    }
+        => CommandHelpers.NormalizeDockerVersion(version);
 }

@@ -27,4 +27,15 @@
     <ProjectReference Include="..\..\src\VectraCtl.Infrastructure\VectraCtl.Infrastructure.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Core\" />
+    <Folder Include="Infrastructure\Extensions\" />
+    <Folder Include="Infrastructure\Serialization\" />
+    <Folder Include="Infrastructure\Services\Configuration\" />
+    <Folder Include="Infrastructure\Services\Docker\" />
+    <Folder Include="Infrastructure\Services\Extractor\" />
+    <Folder Include="Infrastructure\Services\Github\" />
+    <Folder Include="Infrastructure\Services\ProcessHost\" />
+  </ItemGroup>
+
 </Project>

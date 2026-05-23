@@ -1,6 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
 using System.CommandLine;
-using System.Runtime.InteropServices;
 using VectraCtl.Core.Models.Configuration;
 using VectraCtl.Core.Models.Docker;
 using VectraCtl.Core.Services.Configuration;
@@ -136,7 +135,7 @@ internal static class InitCommand
             return;
 
         logger.Write("Setting executable permissions...");
-        MakeExecutable(binaryFile);
+        CommandHelpers.MakeExecutable(binaryFile);
 
         var settings = await appSettingsService.LoadAsync(cancellationToken);
         settings.DeploymentMode = DeploymentMode.Binary;
@@ -233,7 +232,7 @@ internal static class InitCommand
             return;
         }
 
-        var platformSuffix = await GetPlatformSuffixAsync(docker, cancellationToken);
+        var platformSuffix = await CommandHelpers.GetPlatformSuffixAsync(docker, cancellationToken);
         if (string.IsNullOrWhiteSpace(platformSuffix))
         {
             logger.WriteError("Unsupported Docker platform – only linux-amd64 and windows-ltsc2022-amd64 are currently supported.");
@@ -309,33 +308,7 @@ internal static class InitCommand
         if (!string.IsNullOrWhiteSpace(requested))
             version = requested;
 
-        return NormalizeVersion(version);
-    }
-
-    /// <summary>Ensures the version string has a leading "v" (e.g. "1.2.3" → "v1.2.3").</summary>
-    private static string NormalizeVersion(string? version)
-    {
-        if (string.IsNullOrWhiteSpace(version))
-            return string.Empty;
-
-        return version.StartsWith("v", StringComparison.OrdinalIgnoreCase) ? version : $"v{version}";
-    }
-
-    /// <summary>Strips the leading "v" from a version string for Docker tags (e.g. "v1.2.3" → "1.2.3").</summary>
-    private static string NormalizeDockerVersion(string? version)
-    {
-        if (string.IsNullOrWhiteSpace(version))
-            return string.Empty;
-
-        return version.StartsWith("v", StringComparison.OrdinalIgnoreCase)
-            ? version[1..]
-            : version;
-    }
-
-    private static async Task<string?> GetPlatformSuffixAsync(IDockerService docker, CancellationToken cancellationToken)
-    {
-        var mode = await docker.GetDockerModeAsync(cancellationToken);
-        return mode == "Windows" ? "windows-ltsc2022-amd64" : "linux-amd64";
+        return CommandHelpers.NormalizeVersion(version);
     }
 
     private static (string hostDataPath, string containerDataPath) ResolveMountPaths(
@@ -367,40 +340,6 @@ internal static class InitCommand
         string archivePath,
         CancellationToken cancellationToken)
     {
-        var stagingDir = Path.Combine(location.DefaultVectraBinaryDirectoryName, "downloadedFiles");
-        var destDir = location.DefaultVectraBinaryDirectoryName;
-
-        Directory.CreateDirectory(stagingDir);
-        extractor.ExtractArchive(archivePath, stagingDir);
-        Directory.CreateDirectory(destDir);
-        CopyFilesRecursively(stagingDir, destDir, cancellationToken);
-        Directory.Delete(stagingDir, recursive: true);
-    }
-
-    private static void CopyFilesRecursively(string source, string destination, CancellationToken cancellationToken)
-    {
-        foreach (var dir in Directory.GetDirectories(source, "*", SearchOption.AllDirectories))
-        {
-            if (cancellationToken.IsCancellationRequested) break;
-            Directory.CreateDirectory(dir.Replace(source, destination));
-        }
-
-        foreach (var file in Directory.GetFiles(source, "*.*", SearchOption.AllDirectories))
-        {
-            if (cancellationToken.IsCancellationRequested) break;
-            File.Copy(file, file.Replace(source, destination), overwrite: true);
-        }
-    }
-
-    private static void MakeExecutable(string path)
-    {
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) return;
-
-        const UnixFileMode permissions =
-            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
-            UnixFileMode.GroupRead | UnixFileMode.GroupWrite | UnixFileMode.GroupExecute |
-            UnixFileMode.OtherRead | UnixFileMode.OtherWrite | UnixFileMode.OtherExecute;
-
-        File.SetUnixFileMode(path, permissions);
+        CommandHelpers.ExtractAssetToRoot(extractor, location, archivePath, cancellationToken);
     }
 }

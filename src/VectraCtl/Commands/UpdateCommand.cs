@@ -1,6 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
 using System.CommandLine;
-using System.Runtime.InteropServices;
 using VectraCtl.Core.Services.Extractor;
 using VectraCtl.Core.Services.Github;
 using VectraCtl.Core.Services.Location;
@@ -102,7 +101,7 @@ internal static class UpdateCommand
 
         logger.Write($"Vectra gateway updated to {targetVersion} successfully.");
 
-        MakeExecutable(binaryFile);
+        CommandHelpers.MakeExecutable(binaryFile);
     }
 
     // -------------------------------------------------------------------------
@@ -143,7 +142,7 @@ internal static class UpdateCommand
         }
 
         logger.Write("Extracting archive...");
-        ExtractAsset(extractor, location, archivePath, "gateway", cancellationToken);
+        CommandHelpers.ExtractAsset(extractor, location, archivePath, "gateway", cancellationToken);
         return true;
     }
 
@@ -159,7 +158,7 @@ internal static class UpdateCommand
         string? requestedVersion,
         string latestVersion)
     {
-        var target = NormalizeVersion(
+        var target = CommandHelpers.NormalizeVersion(
             string.IsNullOrWhiteSpace(requestedVersion) ? latestVersion : requestedVersion);
 
         return (IsNewerVersion(target, currentVersion), target);
@@ -206,55 +205,6 @@ internal static class UpdateCommand
         return version.StartsWith("v", StringComparison.OrdinalIgnoreCase) ? version[1..] : version;
     }
 
-    private static string NormalizeVersion(string? version)
-    {
-        if (string.IsNullOrWhiteSpace(version))
-            return string.Empty;
+    private static string NormalizeVersion(string? version) => CommandHelpers.NormalizeVersion(version);
 
-        return version.StartsWith("v", StringComparison.OrdinalIgnoreCase) ? version : $"v{version}";
-    }
-
-    private static void ExtractAsset(
-        IArchiveExtractor extractor,
-        ILocation location,
-        string archivePath,
-        string destinationFolder,
-        CancellationToken cancellationToken)
-    {
-        var stagingDir = Path.Combine(location.DefaultVectraBinaryDirectoryName, destinationFolder, "downloadedFiles");
-        var destDir = Path.Combine(location.DefaultVectraBinaryDirectoryName, destinationFolder);
-
-        Directory.CreateDirectory(stagingDir);
-        extractor.ExtractArchive(archivePath, stagingDir);
-        Directory.CreateDirectory(destDir);
-        CopyFilesRecursively(stagingDir, destDir, cancellationToken);
-        Directory.Delete(stagingDir, recursive: true);
-    }
-
-    private static void CopyFilesRecursively(string source, string destination, CancellationToken cancellationToken)
-    {
-        foreach (var dir in Directory.GetDirectories(source, "*", SearchOption.AllDirectories))
-        {
-            if (cancellationToken.IsCancellationRequested) break;
-            Directory.CreateDirectory(dir.Replace(source, destination));
-        }
-
-        foreach (var file in Directory.GetFiles(source, "*.*", SearchOption.AllDirectories))
-        {
-            if (cancellationToken.IsCancellationRequested) break;
-            File.Copy(file, file.Replace(source, destination), overwrite: true);
-        }
-    }
-
-    private static void MakeExecutable(string path)
-    {
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) return;
-
-        const UnixFileMode permissions =
-            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
-            UnixFileMode.GroupRead | UnixFileMode.GroupWrite | UnixFileMode.GroupExecute |
-            UnixFileMode.OtherRead | UnixFileMode.OtherWrite | UnixFileMode.OtherExecute;
-
-        File.SetUnixFileMode(path, permissions);
-    }
 }
