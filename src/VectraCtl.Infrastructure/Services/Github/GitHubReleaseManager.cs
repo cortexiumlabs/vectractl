@@ -26,7 +26,7 @@ public class GitHubReleaseManager : IGitHubReleaseManager
     {
         var release = await GetReleaseByVersionOrLatest(owner, repository, versionTag);
         var asset = release.Assets.FirstOrDefault(a => a.Name == assetName)
-            ?? throw new Exception($"Asset '{assetName}' not found in release '{release.TagName}'.");
+            ?? throw new InvalidOperationException($"Asset '{assetName}' not found in release '{release.TagName}'.");
 
         var response = await _httpClient.GetAsync(asset.BrowserDownloadUrl);
         response.EnsureSuccessStatusCode();
@@ -52,7 +52,7 @@ public class GitHubReleaseManager : IGitHubReleaseManager
         using var stream = File.OpenRead(filePath);
         using HashAlgorithm hasher = SHA256.Create();
         var hashBytes = hasher.ComputeHash(stream);
-        return BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
+        return Convert.ToHexStringLower(hashBytes);
     }
 
     public bool ValidateDownloadedAsset(string downloadedFilePath, string hashFilePath)

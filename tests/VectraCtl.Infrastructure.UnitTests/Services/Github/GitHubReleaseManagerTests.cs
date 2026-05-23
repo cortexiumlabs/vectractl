@@ -34,6 +34,7 @@ public class GitHubReleaseManagerTests : IDisposable
         _httpClient.Dispose();
         if (Directory.Exists(_tempDir))
             Directory.Delete(_tempDir, recursive: true);
+        GC.SuppressFinalize(this);
     }
 
     // --- GetLatestVersion ---
