@@ -13,12 +13,11 @@ on:
         type: boolean
         default: false
 
-permissions:
-  contents: read
-
 jobs:
   validate:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Validate version format
         env:
