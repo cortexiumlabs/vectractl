@@ -44,8 +44,7 @@ public class AppSettingsService : IAppSettingsService
 
     public async Task SaveAsync(AppSettings settings, CancellationToken cancellationToken = default)
     {
-        if (settings == null)
-            throw new ArgumentNullException(nameof(settings));
+        ArgumentNullException.ThrowIfNull(settings);
 
         var settingsPath = GetSettingsPath();
         var settingsDirectory = Path.GetDirectoryName(settingsPath);
