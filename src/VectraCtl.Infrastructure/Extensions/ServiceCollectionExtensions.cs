@@ -24,6 +24,7 @@ public static class ServiceCollectionExtensions
                 .AddScoped<IProcessHandler, ProcessHandler>()
                 .AddScoped<IArchiveExtractor, ArchiveExtractor>()
                 .AddScoped<IAppSettingsService, AppSettingsService>()
+                .AddScoped<IDockerProcessRunner, SystemDockerProcessRunner>()
                 .AddScoped<IDockerService, DockerService>();
 
         return services;
