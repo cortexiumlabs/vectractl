@@ -24,6 +24,7 @@ getSystemInfo() {
         armv7*) ARCH="arm";;
         aarch64) ARCH="arm64";;
         x86_64) ARCH="x64";;
+        *) echo "Unsupported architecture: $ARCH"; exit 1;;
     esac
 
     OS=$(uname | tr '[:upper:]' '[:lower:]')
@@ -32,6 +33,7 @@ getSystemInfo() {
     if [[ "$OS" == "linux" || "$OS" == "darwin" ]] && [[ "$VECTRACTL_INSTALL_DIR" == "/usr/local/bin" ]]; then
         USE_SUDO="true"
     fi
+    return
 }
 
 verifySupported() {
@@ -72,6 +74,7 @@ runAsRoot() {
         echo "Please visit https://github.com/cortexiumlabs/vectractl for instructions on how to install without sudo."
         exit 1
     }
+    return
 }
 
 checkHttpRequestVectraCtl() {
@@ -83,6 +86,7 @@ checkHttpRequestVectraCtl() {
         echo "Either curl or wget is required"
         exit 1
     fi
+    return
 }
 
 checkExistingVectraCtl() {
@@ -93,16 +97,17 @@ checkExistingVectraCtl() {
     else
         echo -e "Installing VectraCtl...\n"
     fi
+    return
 }
 
 getLatestRelease() {
-    local vectrActlReleaseUrl="https://api.github.com/repos/${GITHUB_ORG}/${GITHUB_REPO}/releases"
+    local vectractl_release_url="https://api.github.com/repos/${GITHUB_ORG}/${GITHUB_REPO}/releases"
     local latest_release=""
 
     if [[ "$HTTP_REQUEST_VECTRACTL" == "curl" ]]; then
-        latest_release=$(curl -s "$vectrActlReleaseUrl" | grep \"tag_name\" | grep -v rc | awk 'NR==1{print $2}' |  sed -n 's/\"\(.*\)\",/\1/p')
+        latest_release=$(curl -s "$vectractl_release_url" | grep \"tag_name\" | grep -v rc | awk 'NR==1{print $2}' |  sed -n 's/\"\(.*\)\",/\1/p')
     else
-        latest_release=$(wget -q --header="Accept: application/json" -O - "$vectrActlReleaseUrl" | grep \"tag_name\" | grep -v rc | awk 'NR==1{print $2}' |  sed -n 's/\"\(.*\)\",/\1/p')
+        latest_release=$(wget -q --header="Accept: application/json" -O - "$vectractl_release_url" | grep \"tag_name\" | grep -v rc | awk 'NR==1{print $2}' |  sed -n 's/\"\(.*\)\",/\1/p')
     fi
 
     if [[ -z "$latest_release" ]]; then
@@ -110,6 +115,7 @@ getLatestRelease() {
         exit 1
     fi
     ret_val=$latest_release
+    return
 }
 
 downloadFile() {
@@ -134,6 +140,7 @@ downloadFile() {
         echo "failed to download $DOWNLOAD_URL ..."
         exit 1
     fi
+    return
 }
 
 isReleaseAvailable() {
@@ -182,6 +189,7 @@ installFile() {
         echo "Failed to install $VECTRACTL_FILENAME"
         exit 1
     fi
+    return
 }
 
 fail_trap() {
@@ -198,10 +206,12 @@ cleanup() {
     if [[ -d "${VECTRACTL_TMP_ROOT:-}" ]]; then
         rm -rf "$VECTRACTL_TMP_ROOT"
     fi
+    return
 }
 
 installCompleted() {
     echo -e "\nTo get started with VectraCtl, please visit https://github.com/cortexiumlabs/vectractl"
+    return
 }
 
 # -----------------------------------------------------------------------------

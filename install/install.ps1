@@ -82,7 +82,7 @@ function GetWindowsAsset {
     param (
         $Release
     )
-    $windowsAsset = $Release | Select-Object -ExpandProperty assets | Where-Object { $_.name -Like "*windows-x64.zip" }
+    $windowsAsset = $Release | Select-Object -ExpandProperty assets | Where-Object { $_.name -like "*windows-x64.zip" }
     if (!$windowsAsset) {
         throw "Cannot find the windows VectraCtl binary"
     }
