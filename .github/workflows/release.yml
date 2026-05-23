@@ -14,8 +14,7 @@ on:
         default: false
 
 permissions:
-  contents: write
-  packages: read
+  contents: read
 
 jobs:
   validate:
@@ -32,6 +31,9 @@ jobs:
 
   build:
     needs: validate
+    permissions:
+      contents: read
+      packages: read
     strategy:
       matrix:
         include:
@@ -107,6 +109,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
     env:
       ARTIFACT_DIR: ./release
     steps:
