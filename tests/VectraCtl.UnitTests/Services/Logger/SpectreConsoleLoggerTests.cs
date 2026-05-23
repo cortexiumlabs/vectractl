@@ -41,20 +41,20 @@ public class SpectreConsoleLoggerTests
     [Fact]
     public void GenerateXml_NullData_ReturnsEmpty()
     {
-        _sut.GenerateXml(null).Should().BeEmpty();
+        SpectreConsoleLogger.GenerateXml(null).Should().BeEmpty();
     }
 
     [Fact]
     public void GenerateXml_WhitespaceData_ReturnsEmpty()
     {
-        _sut.GenerateXml("   ").Should().BeEmpty();
+        SpectreConsoleLogger.GenerateXml("   ").Should().BeEmpty();
     }
 
     [Fact]
     public void GenerateXml_SimpleJsonObject_ReturnsXml()
     {
         var json = """{"name":"Alice","age":30}""";
-        var result = _sut.GenerateXml(json);
+        var result = SpectreConsoleLogger.GenerateXml(json);
 
         result.Should().StartWith("<");
         result.Should().Contain("Alice");
@@ -65,7 +65,7 @@ public class SpectreConsoleLoggerTests
     public void GenerateXml_JsonArray_ReturnsXmlWithItems()
     {
         var json = """[{"name":"Alice"},{"name":"Bob"}]""";
-        var result = _sut.GenerateXml(json);
+        var result = SpectreConsoleLogger.GenerateXml(json);
 
         result.Should().Contain("Alice");
         result.Should().Contain("Bob");
@@ -110,14 +110,14 @@ public class SpectreConsoleLoggerTests
     [Fact]
     public void GenerateJson_NullData_ReturnsEmpty()
     {
-        _sut.GenerateJson(null).Should().BeEmpty();
+        SpectreConsoleLogger.GenerateJson(null).Should().BeEmpty();
     }
 
     [Fact]
     public void GenerateJson_ValidString_ReturnsSameString()
     {
         const string json = """{"key":"value"}""";
-        _sut.GenerateJson(json).Should().Be(json);
+        SpectreConsoleLogger.GenerateJson(json).Should().Be(json);
     }
 
     // Write (string)

@@ -49,7 +49,6 @@ public class SpectreConsoleLogger : IVectraCtlLogger
                 Write(GenerateYaml(json));
                 break;
 
-            case OutputType.Json:
             default:
                 Write(json);
                 break;
@@ -75,10 +74,10 @@ public class SpectreConsoleLogger : IVectraCtlLogger
 
         var expandoList = DeserializeToExpandoList(json);
 
-        if (!expandoList.Any())
+        if (expandoList.Count == 0)
             return table;
 
-        var headers = (IDictionary<string, object?>)expandoList.First();
+        var headers = (IDictionary<string, object?>)expandoList[0];
 
         foreach (var header in headers.Keys)
         {
@@ -97,7 +96,7 @@ public class SpectreConsoleLogger : IVectraCtlLogger
         return table;
     }
 
-    private List<ExpandoObject> DeserializeToExpandoList(string json)
+    private static List<ExpandoObject> DeserializeToExpandoList(string json)
     {
         using var document = JsonDocument.Parse(json);
 
@@ -108,7 +107,7 @@ public class SpectreConsoleLogger : IVectraCtlLogger
                 CreateJsonOptions());
 
             return list
-                   ?? throw new Exception("Data conversion encountered an error. The system couldn't process the data format.");
+                   ?? throw new InvalidOperationException("Data conversion encountered an error. The system couldn't process the data format.");
         }
 
         var single = JsonSerializer.Deserialize<ExpandoObject>(
@@ -117,7 +116,7 @@ public class SpectreConsoleLogger : IVectraCtlLogger
 
         return single != null
             ? new List<ExpandoObject> { single }
-            : throw new Exception("Data conversion encountered an error. The system couldn't process the data format.");
+            : throw new InvalidOperationException("Data conversion encountered an error. The system couldn't process the data format.");
     }
 
     private static JsonSerializerOptions CreateJsonOptions()
@@ -151,7 +150,7 @@ public class SpectreConsoleLogger : IVectraCtlLogger
             select $"{kv.Key}={val}");
     }
 
-    public string GenerateXml(string? data)
+    public static string GenerateXml(string? data)
     {
         if (string.IsNullOrWhiteSpace(data))
             return string.Empty;
@@ -202,7 +201,7 @@ public class SpectreConsoleLogger : IVectraCtlLogger
                 : expandoObjects);
     }
 
-    public string GenerateJson(string? data) =>
+    public static string GenerateJson(string? data) =>
         data ?? string.Empty;
 }
 
