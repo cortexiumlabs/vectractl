@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using FluentAssertions;
 using VectraCtl.Core.Exceptions;
 using VectraCtl.Core.Serialization;
@@ -82,9 +84,31 @@ public class JsonDeserializerTests
         act.Should().Throw<VectraCtlException>();
     }
 
+    [Fact]
+    public void Deserialize_WithConverters_UsesConverter()
+    {
+        // The converter reads "quoted:42" as the integer 42
+        var config = new JsonSerializationConfiguration
+        {
+            Converters = [new QuotedIntConverter()]
+        };
+        var json = "{\"firstName\":\"Alice\",\"age\":\"quoted:7\"}";
+        var result = _sut.Deserialize<SampleModel>(json, config);
+        result.Age.Should().Be(7);
+    }
+
     private class SampleModel
     {
         public string FirstName { get; set; } = string.Empty;
         public int Age { get; set; }
+    }
+
+    private class QuotedIntConverter : JsonConverter<int>
+    {
+        public override int Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+            => int.Parse(reader.GetString()!.Replace("quoted:", ""));
+
+        public override void Write(Utf8JsonWriter writer, int value, JsonSerializerOptions options)
+            => writer.WriteStringValue($"quoted:{value}");
     }
 }

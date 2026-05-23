@@ -1,20 +1,23 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using FluentAssertions;
 using VectraCtl.Core.Exceptions;
 using VectraCtl.Core.Serialization;
 using VectraCtl.Infrastructure.Serialization;
+using InfraJsonSerializer = VectraCtl.Infrastructure.Serialization.JsonSerializer;
 
 namespace VectraCtl.Infrastructure.UnitTests.Serialization;
 
 public class JsonSerializerTests
 {
-    private readonly JsonSerializer _sut = new();
+    private readonly InfraJsonSerializer _sut = new();
 
     // --- ContentMineType ---
 
     [Fact]
     public void ContentMineType_ReturnsApplicationJson()
     {
-        JsonSerializer.ContentMineType.Should().Be("application/json");
+        InfraJsonSerializer.ContentMineType.Should().Be("application/json");
     }
 
     // --- Serialize(object?) ---
@@ -83,8 +86,30 @@ public class JsonSerializerTests
         result.FirstName.Should().Be("Bob");
     }
 
+    [Fact]
+    public void Serialize_WithConverters_UsesConverter()
+    {
+        var config = new JsonSerializationConfiguration
+        {
+            Converters = [new AlwaysQuotedIntConverter()]
+        };
+        var result = _sut.Serialize(new { count = 99 }, config);
+        // The custom converter wraps int values in quotes
+        result.Should().Contain("\"quoted:99\"");
+    }
+
     private class SampleModel
     {
         public string FirstName { get; set; } = string.Empty;
+    }
+
+    /// <summary>Custom converter used to exercise the Converters loop.</summary>
+    private class AlwaysQuotedIntConverter : JsonConverter<int>
+    {
+        public override int Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+            => int.Parse(reader.GetString()!.Replace("quoted:", ""));
+
+        public override void Write(Utf8JsonWriter writer, int value, JsonSerializerOptions options)
+            => writer.WriteStringValue($"quoted:{value}");
     }
 }

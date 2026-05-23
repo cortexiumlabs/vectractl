@@ -147,6 +147,22 @@ public class AppSettingsServiceTests : IDisposable
         Directory.Exists(_tempDir).Should().BeTrue();
     }
 
+    // --- LoadAsync: Normalize fills in null sub-objects ---
+
+    [Fact]
+    public async Task LoadAsync_ValidFile_NullDocker_NormalizesDockerToDefault()
+    {
+        var json = "{\"deploymentMode\":\"Binary\"}";
+        var deserialized = new AppSettings { DeploymentMode = DeploymentMode.Binary, Docker = null!, Binary = null! };
+        await File.WriteAllTextAsync(_sut.GetSettingsPath(), json);
+        _deserializer.Deserialize<AppSettings>(json).Returns(deserialized);
+
+        var result = await _sut.LoadAsync();
+
+        result.Docker.Should().NotBeNull();
+        result.Binary.Should().NotBeNull();
+    }
+
     // --- Helpers ---
 
     private static void AssertDefaultSettings(AppSettings settings)

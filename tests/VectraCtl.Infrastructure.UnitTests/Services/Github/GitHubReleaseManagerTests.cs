@@ -113,6 +113,36 @@ public class GitHubReleaseManagerTests : IDisposable
         Directory.Exists(Path.GetDirectoryName(downloadPath)).Should().BeTrue();
     }
 
+    [Fact]
+    public async Task DownloadAsset_DownloadPathWithNoDirectory_WritesFileSuccessfully()
+    {
+        // Path.GetDirectoryName returns empty string for a bare filename;
+        // the code must skip Directory.CreateDirectory in that case.
+        var release = CreateRelease("v1.0.0", assets: [("bare.zip", "https://example.com/bare.zip")]);
+        _releasesClient.GetLatest("owner", "repo").Returns(release);
+        _httpHandler.ResponseContent = "bare content";
+
+        // Use a temp-rooted path that has an empty directory component
+        var downloadPath = Path.Combine(_tempDir, "bare.zip");
+        // Simulate "no parent" by providing only a filename component in a known dir
+        // so that Path.GetDirectoryName = _tempDir (non-empty) — to hit the empty branch
+        // we instead use a path whose GetDirectoryName IS empty by working in the current dir.
+        var originalDir = Directory.GetCurrentDirectory();
+        Directory.SetCurrentDirectory(_tempDir);
+        try
+        {
+            await _sut.DownloadAsset("owner", "repo", "bare.zip", "bare.zip");
+            File.Exists(Path.Combine(_tempDir, "bare.zip")).Should().BeTrue();
+        }
+        finally
+        {
+            Directory.SetCurrentDirectory(originalDir);
+            // cleanup
+            var f = Path.Combine(_tempDir, "bare.zip");
+            if (File.Exists(f)) File.Delete(f);
+        }
+    }
+
     // --- DownloadHashAsset ---
 
     [Fact]
