@@ -164,47 +164,7 @@ internal static class UpdateCommand
         return (IsNewerVersion(target, currentVersion), target);
     }
 
-    /// <summary>Returns true when <paramref name="candidate"/> is strictly newer than <paramref name="current"/>.</summary>
-    private static bool IsNewerVersion(string candidate, string current)
-    {
-        if (string.IsNullOrWhiteSpace(candidate) || string.IsNullOrWhiteSpace(current))
-            return false;
-
-        if (Version.TryParse(StripVersionPrefix(candidate), out var v1) &&
-            Version.TryParse(StripVersionPrefix(current), out var v2))
-        {
-            return v1 > v2;
-        }
-
-        // Fall back to segment-by-segment comparison for non-standard version strings
-        var latestParts = StripVersionPrefix(candidate).Split('.');
-        var currentParts = StripVersionPrefix(current).Split('.');
-        int max = Math.Max(latestParts.Length, currentParts.Length);
-
-        for (int i = 0; i < max; i++)
-        {
-            int l = i < latestParts.Length && int.TryParse(latestParts[i], out var lp) ? lp : 0;
-            int c = i < currentParts.Length && int.TryParse(currentParts[i], out var cp) ? cp : 0;
-            if (l > c) return true;
-            if (l < c) return false;
-        }
-
-        return false;
-    }
-
-    /// <summary>Strips a leading "v"/"V" and any pre-release suffix (e.g. "-beta") from a version string.</summary>
-    private static string StripVersionPrefix(string version)
-    {
-        if (string.IsNullOrWhiteSpace(version))
-            return string.Empty;
-
-        var dash = version.IndexOf('-');
-        if (dash >= 0)
-            version = version[..dash];
-
-        return version.StartsWith("v", StringComparison.OrdinalIgnoreCase) ? version[1..] : version;
-    }
-
-    private static string NormalizeVersion(string? version) => CommandHelpers.NormalizeVersion(version);
+    private static bool IsNewerVersion(string candidate, string current) =>
+        CommandHelpers.IsNewerVersion(candidate, current);
 
 }

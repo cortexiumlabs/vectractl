@@ -22,12 +22,7 @@ internal static class TokenCommand
             Required = true
         };
 
-        var outputOption = new Option<OutputType>("--output", "-o")
-        {
-            Description = "Formatting Command-Line output",
-            Required = false,
-            DefaultValueFactory = (result) => OutputType.Json
-        };
+        var outputOption = CommandHelpers.CreateOutputOption();
 
         var command = new Command("token", "Exchange agent credentials for a JWT bearer token")
         {
@@ -36,25 +31,16 @@ internal static class TokenCommand
             outputOption
         };
 
-        command.SetAction(async (parseResult, cancellationToken) =>
+        command.SetAction((parseResult, ct) => CommandHelpers.ExecuteAsync(serviceProvider, async (logger, sp) =>
         {
-            var logger = serviceProvider.GetRequiredService<IVectraCtlLogger>();
-            try
+            var client = sp.GetRequiredService<IVectraClient>();
+            var result = await client.Tokens.GenerateAsync(new GenerateTokenRequest
             {
-                var client = serviceProvider.GetRequiredService<IVectraClient>();
-                var result = await client.Tokens.GenerateAsync(new GenerateTokenRequest
-                {
-                    AgentId = parseResult.GetValue(agentIdOption),
-                    ClientSecret = parseResult.GetValue(secretOption)!
-                }, cancellationToken);
-
-                logger.Write(result, parseResult.GetValue(outputOption));
-            }
-            catch (Exception ex)
-            {
-                logger.WriteError(ex.Message);
-            }
-        });
+                AgentId = parseResult.GetValue(agentIdOption),
+                ClientSecret = parseResult.GetValue(secretOption)!
+            }, ct);
+            logger.Write(result, parseResult.GetValue(outputOption));
+        }));
 
         return command;
     }

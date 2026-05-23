@@ -22,24 +22,9 @@ internal static class AgentsCommand
 
     private static Command CreateListCommand(IServiceProvider serviceProvider)
     {
-        var pageOption = new Option<int>("--page")
-        {
-            Description = "Page number for pagination (default: 1)",
-            DefaultValueFactory = (result) => 1
-        };
-
-        var pageSizeOption = new Option<int>("--page-size")
-        {
-            Description = "Page size for pagination (default: 25)",
-            DefaultValueFactory = (result) => 25
-        };
-
-        var outputOption = new Option<OutputType>("--output", "-o")
-        {
-            Description = "Formatting Command-Line output",
-            Required = false,
-            DefaultValueFactory = (result) => OutputType.Json
-        };
+        var pageOption = CommandHelpers.CreatePageOption();
+        var pageSizeOption = CommandHelpers.CreatePageSizeOption();
+        var outputOption = CommandHelpers.CreateOutputOption();
 
         var cmd = new Command("list", "List all registered AI agents")
         {
@@ -48,23 +33,14 @@ internal static class AgentsCommand
             outputOption
         };
 
-        cmd.SetAction(async (parseResult, cancellationToken) =>
+        cmd.SetAction((parseResult, ct) => CommandHelpers.ExecuteAsync(serviceProvider, async (logger, sp) =>
         {
-            var logger = serviceProvider.GetRequiredService<IVectraCtlLogger>();
-            try
-            {
-                var client = serviceProvider.GetRequiredService<IVectraClient>();
-                var agents = await client.Agents.ListAsync(
-                    parseResult.GetValue(pageOption),
-                    parseResult.GetValue(pageSizeOption), cancellationToken);
-
-                logger.Write(agents, parseResult.GetValue(outputOption));
-            }
-            catch (Exception ex)
-            {
-                logger.WriteError(ex.Message);
-            }
-        });
+            var client = sp.GetRequiredService<IVectraClient>();
+            var agents = await client.Agents.ListAsync(
+                parseResult.GetValue(pageOption),
+                parseResult.GetValue(pageSizeOption), ct);
+            logger.Write(agents, parseResult.GetValue(outputOption));
+        }));
 
         return cmd;
     }
@@ -82,26 +58,17 @@ internal static class AgentsCommand
             secretOption
         };
 
-        cmd.SetAction(async (parseResult, ct) =>
+        cmd.SetAction((parseResult, ct) => CommandHelpers.ExecuteAsync(serviceProvider, async (logger, sp) =>
         {
-            var logger = serviceProvider.GetRequiredService<IVectraCtlLogger>();
-            try
+            var client = sp.GetRequiredService<IVectraClient>();
+            var result = await client.Agents.RegisterAsync(new RegisterAgentRequest
             {
-                var client = serviceProvider.GetRequiredService<IVectraClient>();
-                var result = await client.Agents.RegisterAsync(new RegisterAgentRequest
-                {
-                    Name = parseResult.GetValue(nameOption)!,
-                    OwnerId = parseResult.GetValue(ownerOption)!,
-                    ClientSecret = parseResult.GetValue(secretOption)!
-                }, ct);
-
-                logger.Write(result);
-            }
-            catch (Exception ex)
-            {
-                logger.WriteError(ex.Message);
-            }
-        });
+                Name = parseResult.GetValue(nameOption)!,
+                OwnerId = parseResult.GetValue(ownerOption)!,
+                ClientSecret = parseResult.GetValue(secretOption)!
+            }, ct);
+            logger.Write(result);
+        }));
 
         return cmd;
     }
@@ -117,24 +84,15 @@ internal static class AgentsCommand
             policyOption
         };
 
-        cmd.SetAction(async (parseResult, ct) =>
+        cmd.SetAction((parseResult, ct) => CommandHelpers.ExecuteAsync(serviceProvider, async (logger, sp) =>
         {
-            var logger = serviceProvider.GetRequiredService<IVectraCtlLogger>();
-            try
-            {
-                var client = serviceProvider.GetRequiredService<IVectraClient>();
-                await client.Agents.AssignPolicyAsync(
-                    parseResult.GetValue(agentIdOption),
-                    new AssignPolicyRequest { PolicyName = parseResult.GetValue(policyOption)! },
-                    ct);
-
-                logger.Write("Policy assigned successfully.");
-            }
-            catch (Exception ex)
-            {
-                logger.WriteError(ex.Message);
-            }
-        });
+            var client = sp.GetRequiredService<IVectraClient>();
+            await client.Agents.AssignPolicyAsync(
+                parseResult.GetValue(agentIdOption),
+                new AssignPolicyRequest { PolicyName = parseResult.GetValue(policyOption)! },
+                ct);
+            logger.Write("Policy assigned successfully.");
+        }));
 
         return cmd;
     }
@@ -148,20 +106,12 @@ internal static class AgentsCommand
             agentIdOption
         };
 
-        cmd.SetAction(async (parseResult, ct) =>
+        cmd.SetAction((parseResult, ct) => CommandHelpers.ExecuteAsync(serviceProvider, async (logger, sp) =>
         {
-            var logger = serviceProvider.GetRequiredService<IVectraCtlLogger>();
-            try
-            {
-                var client = serviceProvider.GetRequiredService<IVectraClient>();
-                await client.Agents.DeleteAsync(parseResult.GetValue(agentIdOption), ct);
-                logger.Write("Agent deleted.");
-            }
-            catch (Exception ex)
-            {
-                logger.WriteError(ex.Message);
-            }
-        });
+            var client = sp.GetRequiredService<IVectraClient>();
+            await client.Agents.DeleteAsync(parseResult.GetValue(agentIdOption), ct);
+            logger.Write("Agent deleted.");
+        }));
 
         return cmd;
     }

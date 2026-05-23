@@ -1,12 +1,90 @@
+using Microsoft.Extensions.DependencyInjection;
+using System.CommandLine;
 using System.Runtime.InteropServices;
 using VectraCtl.Core.Services.Docker;
 using VectraCtl.Core.Services.Extractor;
 using VectraCtl.Core.Services.Location;
+using VectraCtl.Core.Services.Logger;
 
 namespace VectraCtl.Commands;
 
 internal static class CommandHelpers
 {
+    // ── Shared CLI option factories ───────────────────────────────────────────
+
+    internal static Option<OutputType> CreateOutputOption() =>
+        new Option<OutputType>("--output", "-o")
+        {
+            Description = "Formatting Command-Line output",
+            Required = false,
+            DefaultValueFactory = _ => OutputType.Json
+        };
+
+    internal static Option<int> CreatePageOption() =>
+        new Option<int>("--page") { Description = "Page number", DefaultValueFactory = _ => 1 };
+
+    internal static Option<int> CreatePageSizeOption() =>
+        new Option<int>("--page-size") { Description = "Page size", DefaultValueFactory = _ => 25 };
+
+    // ── Version comparison ────────────────────────────────────────────────────
+
+    /// <summary>Returns true when <paramref name="candidate"/> is strictly newer than <paramref name="current"/>.</summary>
+    internal static bool IsNewerVersion(string candidate, string current)
+    {
+        if (string.IsNullOrWhiteSpace(candidate) || string.IsNullOrWhiteSpace(current))
+            return false;
+
+        if (Version.TryParse(StripVersionPrefix(candidate), out var v1) &&
+            Version.TryParse(StripVersionPrefix(current), out var v2))
+        {
+            return v1 > v2;
+        }
+
+        var latestParts = StripVersionPrefix(candidate).Split('.');
+        var currentParts = StripVersionPrefix(current).Split('.');
+        int max = Math.Max(latestParts.Length, currentParts.Length);
+
+        for (int i = 0; i < max; i++)
+        {
+            int l = i < latestParts.Length && int.TryParse(latestParts[i], out var lp) ? lp : 0;
+            int c = i < currentParts.Length && int.TryParse(currentParts[i], out var cp) ? cp : 0;
+            if (l > c) return true;
+            if (l < c) return false;
+        }
+
+        return false;
+    }
+
+    /// <summary>Strips a leading "v"/"V" and any pre-release suffix (e.g. "-beta") from a version string.</summary>
+    internal static string StripVersionPrefix(string version)
+    {
+        if (string.IsNullOrWhiteSpace(version))
+            return string.Empty;
+
+        var dash = version.IndexOf('-');
+        if (dash >= 0)
+            version = version[..dash];
+
+        return version.StartsWith("v", StringComparison.OrdinalIgnoreCase) ? version[1..] : version;
+    }
+
+    // ── Action boilerplate ────────────────────────────────────────────────────
+
+    internal static async Task ExecuteAsync(
+        IServiceProvider serviceProvider,
+        Func<IVectraCtlLogger, IServiceProvider, Task> action)
+    {
+        var logger = serviceProvider.GetRequiredService<IVectraCtlLogger>();
+        try
+        {
+            await action(logger, serviceProvider);
+        }
+        catch (Exception ex)
+        {
+            logger.WriteError(ex.Message);
+        }
+    }
+
     /// <summary>Ensures the version string has a leading "v" (e.g. "1.2.3" → "v1.2.3").</summary>
     internal static string NormalizeVersion(string? version)
     {
